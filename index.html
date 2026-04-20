@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WG Putzplan</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
+
+  :root {
+    --bg: #0e0e0e;
+    --surface: #161616;
+    --border: #2a2a2a;
+    --accent: #c8f542;
+    --text: #e8e8e8;
+    --muted: #666;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+
+  header { text-align: center; margin-bottom: 32px; }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 8vw, 3.5rem);
+    font-weight: 800;
+    letter-spacing: -2px;
+    line-height: 1;
+    color: var(--accent);
+  }
+
+  .subtitle {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .week-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .week-nav button {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 1rem;
+    width: 36px; height: 36px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .week-nav button:hover { border-color: var(--accent); color: var(--accent); }
+
+  #weekLabel {
+    font-size: 0.8rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+    min-width: 160px;
+    text-align: center;
+  }
+
+  .grid {
+    display: grid;
+    gap: 10px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .task-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: 14px 16px;
+    gap: 12px;
+    transition: opacity 0.2s;
+  }
+
+  .task-row.done { opacity: 0.45; }
+  .task-row.done .task-name { text-decoration: line-through; color: var(--muted); }
+
+  .task-left { display: flex; flex-direction: column; gap: 4px; }
+  .task-name { font-size: 0.9rem; font-weight: 500; letter-spacing: 0.5px; }
+
+  .task-person {
+    font-size: 0.72rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .p0 { color: #4af; }
+  .p1 { color: #f4a; }
+  .p2 { color: #af4; }
+  .p3 { color: #fa4; }
+
+  .done-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .done-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .task-row.done .done-btn { border-color: #333; color: #444; }
+
+  .pfand-note {
+    max-width: 600px;
+    margin: 18px auto 0;
+    background: #1a1a0e;
+    border: 1px solid #3a3a00;
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-size: 0.75rem;
+    color: #aaa;
+    line-height: 1.5;
+  }
+
+  .pfand-note span { color: var(--accent); }
+
+  .reset-btn {
+    display: block;
+    margin: 28px auto 0;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    padding: 8px 18px;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+  }
+
+  .reset-btn:hover { border-color: #f55; color: #f55; }
+
+  #status {
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+    min-height: 16px;
+  }
+
+  #status.error { color: #f55; }
+  #status.live { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PUTZPLAN</h1>
+  <div class="subtitle">Alex · Leon · Finn · Tim</div>
+</header>
+
+<div class="week-nav">
+  <button onclick="changeWeek(-1)">&#8249;</button>
+  <div id="weekLabel"></div>
+  <button onclick="changeWeek(1)">&#8250;</button>
+</div>
+
+<div id="status">Verbinde...</div>
+<div class="grid" id="taskGrid"></div>
+
+<div class="pfand-note">
+  <span>Pfand:</span> Wer wegbringt, darf das Geld behalten - ausser Kasten.
+</div>
+
+<button class="reset-btn" onclick="resetWeek()">Woche zuruecksetzen</button>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBh5A9xdOG7FGyiEnSnEyziyHghUOSU53I",
+    authDomain: "wg-chores-b402a.firebaseapp.com",
+    databaseURL: "https://wg-chores-b402a-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "wg-chores-b402a",
+    storageBucket: "wg-chores-b402a.firebasestorage.app",
+    messagingSenderId: "16522911221",
+    appId: "1:16522911221:web:cbd7d1e463305954f7d4bc"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  const PERSONS = ['Alex', 'Leon', 'Finn', 'Tim'];
+  const TASKS = [
+    'Küche putzen',
+    'Müll',
+    'Bad putzen',
+    'Saugen & Boden putzen (alle Räume)',
+  ];
+
+  const EPOCH = new Date('2025-01-06');
+
+  function getWeekIndex(date) {
+    const d = new Date(date);
+    d.setHours(0,0,0,0);
+    return Math.floor((d - EPOCH) / (7 * 86400000));
+  }
+
+  function getWeekMonday(weekIdx) {
+    const d = new Date(EPOCH);
+    d.setDate(d.getDate() + weekIdx * 7);
+    return d;
+  }
+
+  function getISOWeek(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+  }
+
+  function formatWeek(weekIdx) {
+    const mon = getWeekMonday(weekIdx);
+    const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
+    const fmt = d => d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'});
+    return `KW ${getISOWeek(mon)} - ${fmt(mon)} bis ${fmt(sun)}`;
+  }
+
+  function getAssignments(weekIdx) {
+    return TASKS.map((task, i) => ({
+      task,
+      personIdx: (i + weekIdx) % PERSONS.length
+    }));
+  }
+
+  window._currentWeek = getWeekIndex(new Date());
+  let currentDone = {};
+  let unsubscribeFn = null;
+
+  function subscribeToWeek(weekIdx) {
+    if (unsubscribeFn) unsubscribeFn();
+    const r = ref(db, `weeks/w${weekIdx}/done`);
+    unsubscribeFn = onValue(r, (snapshot) => {
+      currentDone = snapshot.val() || {};
+      const s = document.getElementById('status');
+      s.textContent = 'live';
+      s.className = 'live';
+      render();
+    }, () => {
+      const s = document.getElementById('status');
+      s.textContent = 'Verbindungsfehler';
+      s.className = 'error';
+    });
+  }
+
+  function render() {
+    document.getElementById('weekLabel').textContent = formatWeek(window._currentWeek);
+    const assignments = getAssignments(window._currentWeek);
+    const grid = document.getElementById('taskGrid');
+    grid.innerHTML = '';
+
+    assignments.forEach(({task, personIdx}, i) => {
+      const isDone = !!currentDone[i];
+      const row = document.createEleme
