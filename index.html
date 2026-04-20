@@ -176,7 +176,7 @@
 
 <header>
   <h1>PUTZPLAN</h1>
-  <div class="subtitle">Alex · Leon · Finn · Tim</div>
+  <div class="subtitle">Alex &middot; Leon &middot; Finn &middot; Tim</div>
 </header>
 
 <div class="week-nav">
@@ -194,11 +194,10 @@
 
 <button class="reset-btn" onclick="resetWeek()">Woche zuruecksetzen</button>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-  const firebaseConfig = {
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+  firebase.initializeApp({
     apiKey: "AIzaSyBh5A9xdOG7FGyiEnSnEyziyHghUOSU53I",
     authDomain: "wg-chores-b402a.firebaseapp.com",
     databaseURL: "https://wg-chores-b402a-default-rtdb.europe-west1.firebasedatabase.app",
@@ -206,81 +205,114 @@
     storageBucket: "wg-chores-b402a.firebasestorage.app",
     messagingSenderId: "16522911221",
     appId: "1:16522911221:web:cbd7d1e463305954f7d4bc"
-  };
+  });
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+  var db = firebase.database();
 
-  const PERSONS = ['Alex', 'Leon', 'Finn', 'Tim'];
-  const TASKS = [
-    'Küche putzen',
-    'Müll',
+  var PERSONS = ['Alex', 'Leon', 'Finn', 'Tim'];
+  var TASKS = [
+    'Kueche putzen',
+    'Muell',
     'Bad putzen',
-    'Saugen & Boden putzen (alle Räume)',
+    'Saugen & Boden putzen (alle Raeume)'
   ];
 
-  const EPOCH = new Date('2025-01-06');
+  var EPOCH = new Date('2025-01-06');
 
   function getWeekIndex(date) {
-    const d = new Date(date);
+    var d = new Date(date);
     d.setHours(0,0,0,0);
     return Math.floor((d - EPOCH) / (7 * 86400000));
   }
 
   function getWeekMonday(weekIdx) {
-    const d = new Date(EPOCH);
+    var d = new Date(EPOCH);
     d.setDate(d.getDate() + weekIdx * 7);
     return d;
   }
 
   function getISOWeek(date) {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayNum = d.getUTCDay() || 7;
+    var d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    var dayNum = d.getUTCDay() || 7;
     d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
     return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
   }
 
   function formatWeek(weekIdx) {
-    const mon = getWeekMonday(weekIdx);
-    const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
-    const fmt = d => d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'});
-    return `KW ${getISOWeek(mon)} - ${fmt(mon)} bis ${fmt(sun)}`;
+    var mon = getWeekMonday(weekIdx);
+    var sun = new Date(mon); sun.setDate(sun.getDate() + 6);
+    var fmt = function(d) { return d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'}); };
+    return 'KW ' + getISOWeek(mon) + ' - ' + fmt(mon) + ' bis ' + fmt(sun);
   }
 
   function getAssignments(weekIdx) {
-    return TASKS.map((task, i) => ({
-      task,
-      personIdx: (i + weekIdx) % PERSONS.length
-    }));
+    return TASKS.map(function(task, i) {
+      return { task: task, personIdx: (i + weekIdx) % PERSONS.length };
+    });
   }
 
-  window._currentWeek = getWeekIndex(new Date());
-  let currentDone = {};
-  let unsubscribeFn = null;
+  var currentWeek = getWeekIndex(new Date());
+  var currentDone = {};
+  var currentRef = null;
 
   function subscribeToWeek(weekIdx) {
-    if (unsubscribeFn) unsubscribeFn();
-    const r = ref(db, `weeks/w${weekIdx}/done`);
-    unsubscribeFn = onValue(r, (snapshot) => {
+    if (currentRef) currentRef.off();
+    currentRef = db.ref('weeks/w' + weekIdx + '/done');
+    currentRef.on('value', function(snapshot) {
       currentDone = snapshot.val() || {};
-      const s = document.getElementById('status');
+      var s = document.getElementById('status');
       s.textContent = 'live';
       s.className = 'live';
       render();
-    }, () => {
-      const s = document.getElementById('status');
+    }, function() {
+      var s = document.getElementById('status');
       s.textContent = 'Verbindungsfehler';
       s.className = 'error';
     });
   }
 
   function render() {
-    document.getElementById('weekLabel').textContent = formatWeek(window._currentWeek);
-    const assignments = getAssignments(window._currentWeek);
-    const grid = document.getElementById('taskGrid');
+    document.getElementById('weekLabel').textContent = formatWeek(currentWeek);
+    var assignments = getAssignments(currentWeek);
+    var grid = document.getElementById('taskGrid');
     grid.innerHTML = '';
 
-    assignments.forEach(({task, personIdx}, i) => {
-      const isDone = !!currentDone[i];
-      const row = document.createEleme
+    assignments.forEach(function(a, i) {
+      var isDone = !!currentDone[i];
+      var row = document.createElement('div');
+      row.className = 'task-row' + (isDone ? ' done' : '');
+      row.innerHTML =
+        '<div class="task-left">' +
+          '<div class="task-name">' + a.task + '</div>' +
+          '<div class="task-person p' + a.personIdx + '">' + PERSONS[a.personIdx] + '</div>' +
+        '</div>' +
+        '<button class="done-btn" onclick="toggleDone(' + i + ')">' + (isDone ? '&#10003; erledigt' : 'erledigt?') + '</button>';
+      grid.appendChild(row);
+    });
+  }
+
+  function toggleDone(idx) {
+    var r = db.ref('weeks/w' + currentWeek + '/done/' + idx);
+    if (currentDone[idx]) {
+      r.remove();
+    } else {
+      r.set(true);
+    }
+  }
+
+  function changeWeek(delta) {
+    currentWeek += delta;
+    subscribeToWeek(currentWeek);
+  }
+
+  function resetWeek() {
+    if (confirm('Woche zuruecksetzen?')) {
+      db.ref('weeks/w' + currentWeek + '/done').remove();
+    }
+  }
+
+  subscribeToWeek(currentWeek);
+</script>
+</body>
+</html>
